@@ -1,10 +1,7 @@
 package com.shanlitech.netdelay;
 
 import android.content.Context;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
-import android.os.PowerManager;
+import android.os.*;
 import android.support.v7.app.AppCompatActivity;
 
 import java.io.*;
@@ -21,11 +18,11 @@ public class MainActivity extends AppCompatActivity {
     private Handler handler = new Handler() {
         public void handleMessage(Message msg) {
             try {
-                outputStream.write((new Date().toString() + ((String) msg.obj) +   "savelocal").getBytes());
+                outputStream.write((new Date().toString() + ((String) msg.obj) +   "savelocal\n").getBytes());
             } catch (IOException e) {
                 e.printStackTrace();
             }
-//            releaseWakeLock();
+            releaseWakeLock();
         }
     };
 
@@ -34,25 +31,18 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-//        new AsyncTask<Void, Void, Void>() {
-//            @Override
-//            protected Void doInBackground(Void... params) {
-//                //TCP client and server (Client will automatically send welcome message after setup and server will respond)
-//                new com.shanlitech.netdelay.tcp.Server("localhost", 7000);
-//                new com.shanlitech.netdelay.tcp.Client("localhost", 7000);
-//
-//                //UDP client and server (Here the client explicitly sends a message)
-//                new com.shanlitech.netdelay.udp.Server("localhost", 7001);
-//                new com.shanlitech.netdelay.udp.Client("localhost", 7001).send("Hello World");
-//                return null;
-//            }
-//        }.execute();
+        asyncSock();
+        //rawSock();
 
+    }
+
+    private void rawSock() {
         new Thread(new Runnable() {
 
             @Override
             public void run() {
-                File file = new File("/sdcard/testlog-lock.txt");
+                System.out.println("@Start Run ... " );
+                File file = new File("/sdcard/test.txt");
                 if (file.exists()) {
                     file.delete();
                 }
@@ -67,19 +57,21 @@ public class MainActivity extends AppCompatActivity {
                 } catch (FileNotFoundException e2) {
                     e2.printStackTrace();
                 }
+
                 try {
 
                     Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress("119.254.211.165", 10061));
+                    socket.connect(new InetSocketAddress("119.254.211.165", 10072));
                     InputStream inputStream = socket.getInputStream();
                     BufferedReader inputStream2 = new BufferedReader(new InputStreamReader(
                             inputStream));
                     String lineString;
                     while ((lineString = inputStream2.readLine()) != null) {
-//                        acquireWakeLock();
-                        outputStream.write((new Date().toString() + lineString +  "receive").getBytes());
+                        acquireWakeLock();
+                        System.out.println("@Recv " + lineString);
+                        outputStream.write((new Date().toString() + lineString +  "receive\n").getBytes());
                         Message msgMessage = handler.obtainMessage(1, lineString);
-                        handler.sendMessageDelayed(msgMessage, 5000);
+                        handler.sendMessageDelayed(msgMessage, 1000);
                     }
                 } catch (UnknownHostException e) {
                     try {
@@ -96,9 +88,42 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }).start();
-
     }
 
+    private void asyncSock() {
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... params) {
+                //TCP client and server (Client will automatically send welcome message after setup and server will respond)
+                //new com.shanlitech.netdelay.tcp.Server("localhost", 7000);
+                //new com.shanlitech.netdelay.tcp.Client("localhost", 7000);
+
+                //UDP client and server (Here the client explicitly sends a message)
+                //new com.shanlitech.netdelay.udp.Server("localhost", 7001);
+                //new com.shanlitech.netdelay.udp.Client("localhost", 7001).send("Hello World");
+
+                File file = new File("/sdcard/test.txt");
+                if (file.exists()) {
+                    file.delete();
+                }
+                try {
+                    file.createNewFile();
+                } catch (IOException e2) {
+                    e2.printStackTrace();
+                }
+
+                try {
+                    outputStream = new FileOutputStream(file);
+                } catch (FileNotFoundException e2) {
+                    e2.printStackTrace();
+                }
+
+                new com.shanlitech.netdelay.tcp.Client(handler, outputStream, "119.254.211.165", 10072);
+                //new com.shanlitech.netdelay.tcp.Client(handler, outputStream, "119.254.211.165", 10072);
+                return null;
+            }
+        }.execute();
+    }
     private void acquireWakeLock() {
         if (mWakelock == null) {
             PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
