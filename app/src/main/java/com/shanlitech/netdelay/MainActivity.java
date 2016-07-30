@@ -8,6 +8,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
@@ -18,11 +19,12 @@ public class MainActivity extends AppCompatActivity {
     private Handler handler = new Handler() {
         public void handleMessage(Message msg) {
             try {
-                outputStream.write((new Date().toString() + ((String) msg.obj) +   "savelocal\n").getBytes());
+                SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss.SSS");//设置日期格式
+                outputStream.write((df.format(new Date()) + ((String) msg.obj) +   " savelocal\n").getBytes());
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            releaseWakeLock();
+            //releaseWakeLock();
         }
     };
 
@@ -30,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        acquireWakeLock();
 
         asyncSock();
         //rawSock();
@@ -67,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
                             inputStream));
                     String lineString;
                     while ((lineString = inputStream2.readLine()) != null) {
-                        acquireWakeLock();
+                        //acquireWakeLock();
                         System.out.println("@Recv " + lineString);
                         outputStream.write((new Date().toString() + lineString +  "receive\n").getBytes());
                         Message msgMessage = handler.obtainMessage(1, lineString);
@@ -86,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
                         e1.printStackTrace();
                     }
                 }
+
             }
         }).start();
     }
@@ -124,10 +129,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }.execute();
     }
+
     private void acquireWakeLock() {
         if (mWakelock == null) {
             PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
             mWakelock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "lock");
+            mWakelock.setReferenceCounted(false);
         }
         mWakelock.acquire();
     }

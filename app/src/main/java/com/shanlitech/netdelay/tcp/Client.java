@@ -2,10 +2,7 @@ package com.shanlitech.netdelay.tcp;
 
 import android.os.Handler;
 import android.os.Message;
-import com.koushikdutta.async.AsyncServer;
-import com.koushikdutta.async.AsyncSocket;
-import com.koushikdutta.async.ByteBufferList;
-import com.koushikdutta.async.DataEmitter;
+import com.koushikdutta.async.*;
 import com.koushikdutta.async.callback.CompletedCallback;
 import com.koushikdutta.async.callback.ConnectCallback;
 import com.koushikdutta.async.callback.DataCallback;
@@ -17,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
@@ -29,6 +27,10 @@ public class Client {
 
     Handler handler;
     FileOutputStream outputStream = null;
+
+    AsyncSocket mSocket = null;
+
+    int mCount = 0;
 
     public Client(Handler handler, FileOutputStream outputStream, String host, int port) {
         this.host = host;
@@ -84,6 +86,9 @@ public class Client {
 //            }
 //        });
 
+        mSocket = socket;
+        new Thread(new WorkThread()).start();
+
         socket.setDataCallback(new DataCallback() {
             @Override
             public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
@@ -91,17 +96,18 @@ public class Client {
                 //byte[] msg = bb.getAllByteArray();
                 String msg = getString(bb.getAll());
 
-                System.out.println(new Date().toString() + "[Client] Received Message " + msg);
+                SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss.SSS");//设置日期格式
+                System.out.println(df.format(new Date()) + "[Client] Received Message " + msg);
 
                 try {
-                    outputStream.write((new Date().toString() + msg + " receive \n").getBytes());
+                    outputStream.write((df.format(new Date()) + " " + msg + " receive \n").getBytes());
 
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
 
                 Message msgMessage = handler.obtainMessage(1, new String(bb.getAllByteArray()));
-                handler.sendMessageDelayed(msgMessage, 5000);
+                handler.sendMessageDelayed(msgMessage, 1000);
 
 
             }
@@ -122,5 +128,42 @@ public class Client {
                 System.out.println("[Client] Successfully end connection");
             }
         });
+    }
+
+    public class WorkThread implements Runnable {
+        @Override
+        public void run() {
+            // TODO Auto-generated method stub
+            while (true) {
+                try {
+                    SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss.SSS");//设置日期格式
+                    System.out.println(df.format(new Date()) + "[Client] Send Ping ");
+
+                    Util.writeAll(mSocket, ("Ping " + mCount).getBytes(), new CompletedCallback() {
+                        @Override
+                        public void onCompleted(Exception ex) {
+                            if (ex != null) throw new RuntimeException(ex);
+                            System.out.println("[Client] Successfully wrote message " + mCount);
+                        }
+                    });
+
+                    try {
+
+                        outputStream.write((df.format(new Date()) + " Ping " + mCount + " send \n").getBytes());
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    mCount ++;
+
+                    Thread.sleep(60000);// 线程暂停10秒，单位毫秒
+
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
